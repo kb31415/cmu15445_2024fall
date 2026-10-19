@@ -93,6 +93,13 @@ class DiskScheduler {
   void IncreaseDiskSpace(size_t pages) { disk_manager_->IncreaseDiskSpace(pages); }
 
   /**
+   * Read or write a page on the calling thread.
+   * The buffer pool already waits for every request, so a background hop only adds latency.
+   */
+  void ReadPage(page_id_t page_id, char *page_data) { disk_manager_->ReadPage(page_id, page_data); }
+  void WritePage(page_id_t page_id, const char *page_data) { disk_manager_->WritePage(page_id, page_data); }
+
+  /**
    * @brief Deallocates a page on disk.
    *
    * Note: You should look at the documentation for `DeletePage` in `BufferPoolManager` before using this method.

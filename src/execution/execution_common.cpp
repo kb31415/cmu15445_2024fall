@@ -30,21 +30,21 @@ auto TupleComparator::operator()(const SortEntry &entry_a, const SortEntry &entr
 
     const auto &key_a = entry_a.first[i];
     const auto &key_b = entry_b.first[i];
-    
+
     // 升序比较
     if (order_bys_[i].first == OrderByType::DEFAULT || order_bys_[i].first == OrderByType::ASC) {
       if (key_a.CompareLessThan(key_b) == CmpBool::CmpTrue) return true;
       if (key_a.CompareGreaterThan(key_b) == CmpBool::CmpTrue) return false;
     }
-    
+
     // 降序比较
     if (order_bys_[i].first == OrderByType::DESC) {
       if (key_a.CompareGreaterThan(key_b) == CmpBool::CmpTrue) return true;
       if (key_a.CompareLessThan(key_b) == CmpBool::CmpTrue) return false;
     }
   }
-  // 所有排序键都相等
-  return true;
+  // 所有排序键都相等。严格弱序要求相等时返回 false。
+  return false;
 }
 
 auto GenerateSortKey(const Tuple &tuple, const std::vector<OrderBy> &order_bys, const Schema &schema) -> SortKey {

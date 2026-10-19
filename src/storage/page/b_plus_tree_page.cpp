@@ -66,7 +66,7 @@ auto BPlusTreePage::GetMinSize() const -> int {
     return (max_size_ + 1) / 2;
   }
 
-  return (max_size_ + 1) / 2 ;
+  return (max_size_ + 1) / 2;
 }
 
 }  // namespace bustub

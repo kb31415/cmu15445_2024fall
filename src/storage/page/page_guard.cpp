@@ -319,7 +319,7 @@ void WritePageGuard::Drop() {
     return;
   }
   //修改，先解小锁再解大锁
- frame_->rwlatch_.unlock();
+  frame_->rwlatch_.unlock();
   // 这里同样需要保护buffer pool manager中的数据结构，需要修改的地方就要进行多线程保护
   bpm_latch_->lock();
   frame_->pin_count_--;
@@ -328,7 +328,6 @@ void WritePageGuard::Drop() {
   }
   bpm_latch_->unlock();
 
- 
   // std::cout << "Writer "
   //         << " unlocked " << page_id_ << std::endl;
   is_valid_ = false;

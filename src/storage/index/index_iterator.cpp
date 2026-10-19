@@ -36,16 +36,15 @@ auto INDEXITERATOR_TYPE::operator*() -> std::pair<const KeyType &, const ValueTy
   return result_;
 }
 
-
 INDEX_TEMPLATE_ARGUMENTS
 auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
   index_++;
   ReadPageGuard page_guard = bpm_->ReadPage(page_id_);
   auto leaf_page = page_guard.template As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
 
-   if (index_ >= leaf_page->GetSize()) {
+  if (index_ >= leaf_page->GetSize()) {
     page_id_t next_page_id = leaf_page->GetNextPageId();
-   if (next_page_id == INVALID_PAGE_ID) {
+    if (next_page_id == INVALID_PAGE_ID) {
       index_ = -1;
       page_id_ = next_page_id;
       return *this;
@@ -54,10 +53,9 @@ auto INDEXITERATOR_TYPE::operator++() -> INDEXITERATOR_TYPE & {
     page_id_ = next_page_id;
 
     page_guard = bpm_->ReadPage(page_id_);
-  
+
     leaf_page = page_guard.template As<B_PLUS_TREE_LEAF_PAGE_TYPE>();
   }
-  
 
   result_ = {leaf_page->KeyAt(index_), leaf_page->ValueAt(index_)};
   return *this;

@@ -78,7 +78,7 @@ class SortPage {
 
   auto InsertTuple(const Tuple &tuple) -> bool {
     if (IsFull()) return false;
-    
+
     int offset = size_ * tuple_size_;
     tuple.SerializeTo(data_ + offset);
     size_++;
@@ -129,7 +129,7 @@ class MergeSortRun {
     auto operator++() -> Iterator & {
       auto sort_page = page_guard_.As<SortPage>();
       tuple_idx_++;
-      
+
       if (tuple_idx_ >= sort_page->GetSize()) {
         pages_idx_++;
         tuple_idx_ = 0;
@@ -160,9 +160,7 @@ class MergeSortRun {
      * Checks whether two iterators are pointing to different tuples in a sorted run or iterating
      * on different sorted runs.
      */
-    auto operator!=(const Iterator &other) const -> bool {
-      return !(*this == other);
-    }
+    auto operator!=(const Iterator &other) const -> bool { return !(*this == other); }
 
    private:
     explicit Iterator(const MergeSortRun *run, size_t pages_idx, size_t tuple_idx)
@@ -172,10 +170,10 @@ class MergeSortRun {
       }
     }
 
-    const MergeSortRun *run_;      // 当前迭代的运行
-    int pages_idx_;                // 当前页面索引
-    int tuple_idx_;                // 当前元组索引
-    ReadPageGuard page_guard_{};   // 当前页面的保护器
+    const MergeSortRun *run_;     // 当前迭代的运行
+    int pages_idx_;               // 当前页面索引
+    int tuple_idx_;               // 当前元组索引
+    ReadPageGuard page_guard_{};  // 当前页面的保护器
   };
 
   /**
@@ -231,10 +229,10 @@ class ExternalMergeSortExecutor : public AbstractExecutor {
   std::vector<MergeSortRun> runs_;
 
   MergeSortRun::Iterator iter_{};
-  
+
   /** Create initial sorted runs from child executor */
   void CreateInitialRuns();
-  
+
   /** Merge runs to create new sorted runs */
   void MergeRuns();
 };

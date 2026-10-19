@@ -221,7 +221,6 @@ auto BufferPoolManager::DeletePage(page_id_t page_id) -> bool {
  * page's data.
  */
 auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_type) -> std::optional<WritePageGuard> {
-  
   bpm_latch_->lock();
 
   // (1) 对应page不在buffer pool中
@@ -251,10 +250,7 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
       // std::cout << "Thread " << std::this_thread::get_id() << " use free frame " << frame_id << std::endl;
     }
 
-    auto promise = disk_scheduler_->CreatePromise();
-    auto future = promise.get_future();
-    disk_scheduler_->Schedule({false, frames_[frame_id]->GetDataMut(), page_id, std::move(promise)});
-    future.get();
+    disk_scheduler_->ReadPage(page_id, frames_[frame_id]->GetDataMut());
 
     frames_[frame_id]->pin_count_++;
     frames_[frame_id]->page_id_ = page_id;
@@ -272,7 +268,6 @@ auto BufferPoolManager::CheckedWritePage(page_id_t page_id, AccessType access_ty
   replacer_->RecordAccess(frame_id);
   replacer_->SetEvictable(frame_id, false);
 
- 
   return WritePageGuard(page_id, frames_[frame_id], replacer_, bpm_latch_);
 }
 
@@ -328,19 +323,13 @@ auto BufferPoolManager::CheckedReadPage(page_id_t page_id, AccessType access_typ
       page_table_[page_id] = frame_id;
     }
 
-    // 从disk获取要读的值
-    auto promise = disk_scheduler_->CreatePromise();
-    auto future = promise.get_future();
-    // 别忘记把读disk的值写到frame中
-    disk_scheduler_->Schedule({false, frames_[frame_id]->GetDataMut(), page_id, std::move(promise)});
-    future.get();
+    disk_scheduler_->ReadPage(page_id, frames_[frame_id]->GetDataMut());
 
     frames_[frame_id]->pin_count_++;
     frames_[frame_id]->page_id_ = page_id;
     replacer_->RecordAccess(frame_id);
     replacer_->SetEvictable(frame_id, false);
 
-    
     // 这里的shared_ptr参数都不能move
     return ReadPageGuard(page_id, frames_[frame_id], replacer_, bpm_latch_);
   }
@@ -426,10 +415,8 @@ auto BufferPoolManager::FlushPageInternal(page_id_t page_id) -> bool {
     return false;
   }
   if (frames_[page_table_[page_id]]->is_dirty_) {
-    auto promise = disk_scheduler_->CreatePromise();
-    auto future = promise.get_future();
-    disk_scheduler_->Schedule({true, frames_[page_table_[page_id]]->GetDataMut(), page_id, std::move(promise)});
-    future.get();
+    disk_scheduler_->WritePage(page_id, frames_[page_table_[page_id]]->GetData());
+    frames_[page_table_[page_id]]->is_dirty_ = false;
   }
   return true;
 }
@@ -454,10 +441,8 @@ void BufferPoolManager::FlushAllPages() {
 
   for (const auto &it : frames_) {
     if (it->is_dirty_) {
-      auto promise = disk_scheduler_->CreatePromise();
-      auto future = promise.get_future();
-      disk_scheduler_->Schedule({true, it->GetDataMut(), it->page_id_, std::move(promise)});
-      future.get();
+      disk_scheduler_->WritePage(it->page_id_, it->GetData());
+      it->is_dirty_ = false;
     }
   }
 }

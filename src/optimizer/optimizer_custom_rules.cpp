@@ -22,8 +22,11 @@ namespace bustub {
 auto Optimizer::OptimizeCustom(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef {
   auto p = plan;
   p = OptimizeMergeProjection(p);
-  p = OptimizeMergeFilterNLJ(p);
-  p = OptimizeNLJAsHashJoin(p);
+  // 多表连接的过滤谓词会先下推到内层，需要多轮才能全部变成哈希连接。
+  for (int i = 0; i < 4; i++) {
+    p = OptimizeMergeFilterNLJ(p);
+    p = OptimizeNLJAsHashJoin(p);
+  }
   p = OptimizeOrderByAsIndexScan(p);
   p = OptimizeSortLimitAsTopN(p);
   p = OptimizeMergeFilterScan(p);

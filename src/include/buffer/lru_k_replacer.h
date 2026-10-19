@@ -38,7 +38,7 @@ class LRUKNode {
 
   std::list<size_t> history_;  //访问历史，最近k次访问的时间戳，队头最老
   size_t k_;                   // k
-  bool is_evictable_{false};  //能不能被剔除
+  bool is_evictable_{false};   //能不能被剔除
   friend class LRUKReplacer;
 
  public:

@@ -14,6 +14,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
@@ -61,14 +62,11 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
 
   std::unique_ptr<AbstractExecutor> right_executor_;
 
-  // 用于判断当前处理的左表tuple是否已经与所有右表tuple比较过
-  bool is_left_tuple_over_{true};
-
-  // 表示left_tuple是否匹配上了某个right_tuple
-  // 用于在left join情况下判断是否需要生成连接null值的tuple
-  bool is_match_{false};
-
-  // 记录当前算子左表(outer table)正在比较的tuple，如果不加入该成员，无法通过Next获取之前的tuple
+  /** 右表只扫描一次，之后按块做嵌套循环。 */
+  std::vector<Tuple> right_tuples_;
+  size_t right_idx_{0};
+  bool left_ready_{false};
+  bool matched_{false};
   Tuple left_tuple_{};
 };
 

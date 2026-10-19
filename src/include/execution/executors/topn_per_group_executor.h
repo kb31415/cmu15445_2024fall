@@ -13,12 +13,14 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "execution/execution_common.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
-#include "execution/plans/seq_scan_plan.h"
+#include "execution/plans/aggregation_plan.h"
 #include "execution/plans/topn_per_group_plan.h"
 #include "storage/table/tuple.h"
 
@@ -39,8 +41,12 @@ class TopNPerGroupExecutor : public AbstractExecutor {
 
  private:
   /** The TopNPerGroup plan node to be executed */
-  [[maybe_unused]] const TopNPerGroupPlanNode *plan_;
+  const TopNPerGroupPlanNode *plan_;
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  TupleComparator cmp_;
+  std::unordered_map<AggregateKey, std::vector<SortEntry>> heaps_;
+  std::vector<Tuple> sorted_tuples_;
+  size_t cursor_{0};
 };
 }  // namespace bustub

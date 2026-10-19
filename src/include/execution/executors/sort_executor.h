@@ -13,7 +13,9 @@
 #pragma once
 
 #include <memory>
+#include <vector>
 
+#include "execution/execution_common.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/sort_plan.h"
@@ -38,5 +40,8 @@ class SortExecutor : public AbstractExecutor {
  private:
   /** The sort plan node to be executed */
   const SortPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  std::vector<Tuple> sorted_tuples_;
+  size_t cursor_{0};
 };
 }  // namespace bustub

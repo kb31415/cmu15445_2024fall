@@ -13,10 +13,12 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/plans/aggregation_plan.h"
 #include "execution/plans/window_plan.h"
 #include "storage/table/tuple.h"
 
@@ -78,5 +80,13 @@ class WindowFunctionExecutor : public AbstractExecutor {
 
   /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
+
+  std::vector<Tuple> rows_;
+  std::vector<Tuple> output_;
+  size_t cursor_{0};
+
+  auto MakePartitionKey(const Tuple &tuple, const std::vector<AbstractExpressionRef> &exprs) const -> AggregateKey;
+  auto ComputeWindowValues(const WindowFunctionPlanNode::WindowFunction &window, const Schema &child_schema) const
+      -> std::vector<Value>;
 };
 }  // namespace bustub

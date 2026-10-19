@@ -13,15 +13,15 @@
 #pragma once
 
 #include <memory>
-#include <utility>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
-#include "common/util/hash_util.h"
 
 namespace bustub {
 
@@ -83,40 +83,17 @@ class HashJoinExecutor : public AbstractExecutor {
   /** right child executor */
   std::unique_ptr<AbstractExecutor> right_executor_;
 
-  /** hash table for join */
-  std::unordered_map<HashJoinKey, std::vector<Tuple>> hash_table_;
-
-  /** current matches for the current right tuple */
-  std::vector<Tuple> current_matches_;
-
-  /** current index in matches */
+  /** 左表元组下标，按连接键分组。 */
+  std::unordered_map<HashJoinKey, std::vector<uint32_t>> hash_table_;
+  std::vector<Tuple> left_tuples_;
+  const std::vector<uint32_t> *current_bucket_{nullptr};
   size_t current_match_idx_{0};
 
-  /** current right tuple */
   Tuple current_right_tuple_{};
-
-  /** cirremt right rid */
   RID current_right_rid_{};
-
-  /** whether right tuple is available */
   bool right_tuple_available_{false};
 
-  /** whether current right tuple has been matched */
-  bool left_matched_{false};
-
-  /** For LEFT JOIN: current left tuple */
-  Tuple current_left_tuple_{};
-
-  /** For LEFT JOIN: current left rid */
-  RID current_left_rid_{};
-
-  /** For LEFT JOIN: store all left tuples */
-  std::vector<Tuple> left_tuples_;
-
-  /** For LEFT JOIN: track which left tuples are matched */
   std::vector<bool> left_matched_flags_;
-
-  /** For LEFT JOIN: current index in left tuples */
   size_t current_left_idx_{0};
 };
 

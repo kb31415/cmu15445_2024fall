@@ -34,20 +34,24 @@ void IndexScanExecutor::Init() {
   auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   BUSTUB_ASSERT(table_info != nullptr, "Table not found");
 
-  // 若存在谓词键，使用它们进行点查询
+  // 若存在谓词键，使用它们进行点查询。单个等值条件是一组键；OR 会给出多组键。
   if (!plan_->pred_keys_.empty()) {
     use_iterator_ = false;
-    // 计算谓词键获取搜索键
-    std::vector<Value> key_values;
-    for (const auto &expr : plan_->pred_keys_) {
-      // 常量表达式可使用空元组计算
-      key_values.push_back(expr->Evaluate(nullptr, index_info->key_schema_));
+    result_rids_.clear();
+    const auto key_col_count = index_info->index_->GetIndexColumnCount();
+    const auto &keys = plan_->pred_keys_;
+    for (size_t start = 0; start < keys.size(); start += key_col_count) {
+      std::vector<Value> key_values;
+      key_values.reserve(key_col_count);
+      for (uint32_t col = 0; col < key_col_count && start + col < keys.size(); col++) {
+        key_values.push_back(keys[start + col]->Evaluate(nullptr, index_info->key_schema_));
+      }
+      if (key_values.size() != key_col_count) {
+        break;
+      }
+      Tuple search_key{key_values, &index_info->key_schema_};
+      index_info->index_->ScanKey(search_key, &result_rids_, exec_ctx_->GetTransaction());
     }
-
-    Tuple search_key{key_values, &index_info->key_schema_};
-
-    // 扫描匹配的RID
-    index_info->index_->ScanKey(search_key, &result_rids_, exec_ctx_->GetTransaction());
   } else {
     // 对于全索引扫描，B+树
     use_iterator_ = true;
