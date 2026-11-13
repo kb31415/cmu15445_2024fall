@@ -74,7 +74,7 @@ auto NestedIndexJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     // 如果当前外表元组已处理完所有匹配项，获取下一个外表元组
     if (!outer_tuple_available_ || inner_match_idx_ >= inner_rids_.size()) {
       // 获取下一个外表元组
-      outer_tuple_available_ = child_executor_->Next(&outer_tuple_, &outer_rid);
+      outer_tuple_available_ = child_executor_->Next(&outer_tuple_, &outer_rid_);
       if (!outer_tuple_available_) {
         break;  // 没有更多外表元组
       }

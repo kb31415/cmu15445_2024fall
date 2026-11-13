@@ -64,7 +64,7 @@ auto ComesBefore(const SortKey &a, const SortKey &b, const std::vector<OrderBy> 
   return false;
 }
 
-auto CombineWindow(WindowFunctionType type, Value current, const Value &input) -> Value {
+auto CombineWindow(WindowFunctionType type, const Value &current, const Value &input) -> Value {
   switch (type) {
     case WindowFunctionType::CountStarAggregate:
       if (current.IsNull()) {

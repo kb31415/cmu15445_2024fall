@@ -77,7 +77,9 @@ class SortPage {
   auto IsFull() const -> bool { return size_ == max_size_; }
 
   auto InsertTuple(const Tuple &tuple) -> bool {
-    if (IsFull()) return false;
+    if (IsFull()) {
+      return false;
+    }
 
     int offset = size_ * tuple_size_;
     tuple.SerializeTo(data_ + offset);

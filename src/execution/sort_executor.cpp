@@ -33,7 +33,7 @@ void SortExecutor::Init() {
   Tuple tuple;
   RID rid;
   while (child_executor_->Next(&tuple, &rid)) {
-    entries.push_back({GenerateSortKey(tuple, plan_->GetOrderBy(), child_executor_->GetOutputSchema()), tuple});
+    entries.emplace_back(GenerateSortKey(tuple, plan_->GetOrderBy(), child_executor_->GetOutputSchema()), tuple);
   }
   std::sort(entries.begin(), entries.end(), TupleComparator(plan_->GetOrderBy()));
   sorted_tuples_.reserve(entries.size());

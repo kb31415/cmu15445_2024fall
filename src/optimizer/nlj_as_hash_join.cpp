@@ -49,8 +49,7 @@ auto ExtractJoinKeys(const AbstractExpressionRef &predicate, std::vector<Abstrac
   }
 
   // AND 递归拆分
-  if (const LogicExpression *logic_expr = dynamic_cast<const LogicExpression *>(predicate.get());
-      logic_expr != nullptr) {
+  if (const auto *logic_expr = dynamic_cast<const LogicExpression *>(predicate.get()); logic_expr != nullptr) {
     if (logic_expr->logic_type_ == LogicType::And) {
       // 递归处理AND的两个子表达式
       return ExtractJoinKeys(logic_expr->GetChildAt(0), left_keys, right_keys) &&
@@ -75,7 +74,8 @@ auto ExtractJoinKeys(const AbstractExpressionRef &predicate, std::vector<Abstrac
         left_keys.emplace_back(left_expr);
         right_keys.emplace_back(right_expr);
         return true;
-      } else if (left_col.GetTupleIdx() == 1 && right_col.GetTupleIdx() == 0) {
+      }
+      if (left_col.GetTupleIdx() == 1 && right_col.GetTupleIdx() == 0) {
         left_keys.emplace_back(right_expr);
         right_keys.emplace_back(left_expr);
         return true;

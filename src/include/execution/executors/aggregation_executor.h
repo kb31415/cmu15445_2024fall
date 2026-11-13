@@ -150,15 +150,15 @@ class SimpleAggregationHashTable {
 
     /** Copy constructor */
     Iterator(const Iterator &other)
-        : iter_ptr_(other.iter_ptr_
+        : iter_ptr_(other.iter_ptr_ != nullptr
                         ? new std::unordered_map<AggregateKey, AggregateValue>::const_iterator(*other.iter_ptr_)
                         : nullptr) {}
 
     /** Assignment operator */
-    Iterator &operator=(const Iterator &other) {
+    auto operator=(const Iterator &other) -> Iterator & {
       if (this != &other) {
         delete iter_ptr_;
-        iter_ptr_ = other.iter_ptr_
+        iter_ptr_ = other.iter_ptr_ != nullptr
                         ? new std::unordered_map<AggregateKey, AggregateValue>::const_iterator(*other.iter_ptr_)
                         : nullptr;
       }
@@ -188,8 +188,12 @@ class SimpleAggregationHashTable {
 
     /** @return `true` if both iterators are identical */
     auto operator==(const Iterator &other) -> bool {
-      if (iter_ptr_ == nullptr && other.iter_ptr_ == nullptr) return true;
-      if (iter_ptr_ == nullptr || other.iter_ptr_ == nullptr) return false;
+      if (iter_ptr_ == nullptr && other.iter_ptr_ == nullptr) {
+        return true;
+      }
+      if (iter_ptr_ == nullptr || other.iter_ptr_ == nullptr) {
+        return false;
+      }
       return *iter_ptr_ == *other.iter_ptr_;
     }
 

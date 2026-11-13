@@ -129,7 +129,58 @@ TEST(TxnBonusTest, DISABLED_AbortTest) {  // NOLINT
                                       {3, 233},
                                   }));
     TableHeapEntryNoMoreThan(*bustub, table_info.get(), 3);
-    // test continues on Gradescope...
+  }
+  fmt::println(stderr, "--- AbortTest2: Abort with undo logs ---");
+  {
+    auto bustub = std::make_unique<BusTubInstance>();
+    EnsureIndexScan(*bustub);
+    Execute(*bustub, "CREATE TABLE maintable(a int primary key, b int)");
+    auto table_info = bustub->catalog_->GetTable("maintable");
+    auto txn_prepare_1 = BeginTxn(*bustub, "txn_prepare_1");
+    WithTxn(txn_prepare_1, ExecuteTxn(*bustub, _var, _txn, "INSERT INTO maintable VALUES (2, 2), (3, 2333)"));
+    WithTxn(txn_prepare_1, CommitTxn(*bustub, _var, _txn));
+    auto txn_verify_1 = BeginTxn(*bustub, "txn_verify_1");
+    auto txn_prepare_2 = BeginTxn(*bustub, "txn_prepare_2");
+    WithTxn(txn_prepare_2, ExecuteTxn(*bustub, _var, _txn, "INSERT INTO maintable VALUES (4, 23333), (5, 233333)"));
+    WithTxn(txn_prepare_2, ExecuteTxn(*bustub, _var, _txn, "UPDATE maintable SET b = 233 WHERE a = 2"));
+    WithTxn(txn_prepare_2, ExecuteTxn(*bustub, _var, _txn, "DELETE FROM maintable WHERE a = 3"));
+    WithTxn(txn_prepare_2, ExecuteTxn(*bustub, _var, _txn, "DELETE FROM maintable WHERE a = 5"));
+    WithTxn(txn_prepare_2, CommitTxn(*bustub, _var, _txn));
+    auto txn_verify_2 = BeginTxn(*bustub, "txn_verify_2");
+    TxnMgrDbg("after prepare", bustub->txn_manager_.get(), table_info.get(), table_info->table_.get());
+
+    auto txn3 = BeginTxn(*bustub, "txn3");
+    WithTxn(txn3, ExecuteTxn(*bustub, _var, _txn, "UPDATE maintable SET b = 0"));
+    WithTxn(txn3, AbortTxn(*bustub, _var, _txn));
+    WithTxn(txn_verify_1,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 2}, {3, 2333}}));
+    WithTxn(txn_verify_2,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 233}, {4, 23333}}));
+
+    auto txn4 = BeginTxn(*bustub, "txn4");
+    WithTxn(txn4, ExecuteTxn(*bustub, _var, _txn, "DELETE FROM maintable"));
+    WithTxn(txn4, AbortTxn(*bustub, _var, _txn));
+    WithTxn(txn_verify_1,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 2}, {3, 2333}}));
+    WithTxn(txn_verify_2,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 233}, {4, 23333}}));
+
+    auto txn5 = BeginTxn(*bustub, "txn5");
+    WithTxn(txn5, ExecuteTxn(*bustub, _var, _txn, "INSERT INTO maintable VALUES (3, 0), (5, 0)"));
+    WithTxn(txn5, AbortTxn(*bustub, _var, _txn));
+    WithTxn(txn_verify_1,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 2}, {3, 2333}}));
+    WithTxn(txn_verify_2,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 233}, {4, 23333}}));
+
+    auto txn_final = BeginTxn(*bustub, "txn_final");
+    WithTxn(txn_final,
+            QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable", IntResult{{2, 233}, {4, 23333}}));
+    WithTxn(txn_final, QueryIndex(*bustub, _var, _txn, "SELECT * FROM maintable", "a", std::vector<int>{2, 3, 4, 5},
+                                  IntResult{{2, 233}, {}, {4, 23333}, {}}));
+    WithTxn(txn_final, ExecuteTxn(*bustub, _var, _txn, "INSERT INTO maintable VALUES (3, 111), (5, 111)"));
+    WithTxn(txn_final, QueryShowResult(*bustub, _var, _txn, "SELECT * FROM maintable",
+                                       IntResult{{2, 233}, {3, 111}, {4, 23333}, {5, 111}}));
   }
 }
 // NOLINTEND(bugprone-unchecked-optional-access))

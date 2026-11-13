@@ -11,15 +11,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/index_scan_executor.h"
+
+#include <algorithm>
+
 #include "common/macros.h"
+#include "execution/execution_common.h"
+#include "execution/expressions/constant_value_expression.h"
+#include "storage/table/table_heap.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
-/**
- * Creates a new index scan executor.
- * @param exec_ctx the executor context
- * @param plan the index scan plan to be executed
- */
 IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanPlanNode *plan)
     : AbstractExecutor(exec_ctx), plan_(plan) {
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
@@ -30,11 +32,19 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 void IndexScanExecutor::Init() {
   auto index_info = exec_ctx_->GetCatalog()->GetIndex(plan_->GetIndexOid());
   BUSTUB_ASSERT(index_info != nullptr, "Index not found");
-
   auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   BUSTUB_ASSERT(table_info != nullptr, "Table not found");
 
-  // 若存在谓词键，使用它们进行点查询。单个等值条件是一组键；OR 会给出多组键。
+  auto *txn = exec_ctx_->GetTransaction();
+  if (txn != nullptr && txn->GetIsolationLevel() == IsolationLevel::SERIALIZABLE) {
+    if (plan_->filter_predicate_ != nullptr) {
+      txn->AppendScanPredicate(plan_->table_oid_, plan_->filter_predicate_);
+    } else {
+      txn->AppendScanPredicate(plan_->table_oid_,
+                               std::make_shared<ConstantValueExpression>(ValueFactory::GetBooleanValue(true)));
+    }
+  }
+
   if (!plan_->pred_keys_.empty()) {
     use_iterator_ = false;
     result_rids_.clear();
@@ -52,85 +62,75 @@ void IndexScanExecutor::Init() {
       Tuple search_key{key_values, &index_info->key_schema_};
       index_info->index_->ScanKey(search_key, &result_rids_, exec_ctx_->GetTransaction());
     }
+    // A primary-key update replaces the index entry. An older snapshot still needs the
+    // previous key, so consider every slot and let the predicate keep the visible version.
+    auto iter = table_info->table_->MakeIterator();
+    while (!iter.IsEnd()) {
+      auto heap_rid = iter.GetRID();
+      ++iter;
+      if (std::find(result_rids_.begin(), result_rids_.end(), heap_rid) == result_rids_.end()) {
+        result_rids_.push_back(heap_rid);
+      }
+    }
   } else {
-    // 对于全索引扫描，B+树
     use_iterator_ = true;
     it_ = tree_->GetBeginIterator();
     end_it_ = tree_->GetEndIterator();
-    // 使用迭代器不需要result_rids
     result_rids_.clear();
   }
-
   current_idx_ = 0;
 }
 
 auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
   BUSTUB_ASSERT(table_info != nullptr, "Table not found");
+  auto *txn = exec_ctx_->GetTransaction();
+  auto *txn_mgr = exec_ctx_->GetTransactionManager();
+
+  auto emit = [&](RID current_rid, const Tuple &visible) -> bool {
+    if (plan_->filter_predicate_ != nullptr) {
+      auto value = plan_->filter_predicate_->Evaluate(&visible, table_info->schema_);
+      if (value.IsNull() || !value.GetAs<bool>()) {
+        return false;
+      }
+    }
+    std::vector<Value> values;
+    values.reserve(GetOutputSchema().GetColumnCount());
+    for (uint32_t i = 0; i < GetOutputSchema().GetColumnCount(); i++) {
+      values.push_back(visible.GetValue(&table_info->schema_, i));
+    }
+    *tuple = Tuple{values, &GetOutputSchema()};
+    *rid = current_rid;
+    return true;
+  };
 
   if (use_iterator_) {
     while (!it_.IsEnd()) {
       auto [key, value] = *it_;
+      (void)key;
       RID current_rid = value;
       ++it_;
-
-      auto [tuple_meta, table_tuple] = table_info->table_->GetTuple(current_rid);
-      if (tuple_meta.is_deleted_) {
+      auto visible = MvccRead(txn, txn_mgr, table_info->schema_, table_info->table_.get(), current_rid);
+      if (!visible.has_value()) {
         continue;
       }
-
-      // 过滤
-      if (plan_->filter_predicate_ != nullptr) {
-        auto filter_value = plan_->filter_predicate_->Evaluate(&table_tuple, table_info->schema_);
-        if (filter_value.IsNull() || !filter_value.GetAs<bool>()) {
-          continue;
-        }
+      if (emit(current_rid, *visible)) {
+        return true;
       }
-
-      // 对元组投影，使其匹配输出 schema（只保留需要的字段）
-      std::vector<Value> values;
-      values.reserve(GetOutputSchema().GetColumnCount());
-      // 遍历输出schema的每个字段，从原始元组中提取对应的值
-      for (uint32_t i = 0; i < GetOutputSchema().GetColumnCount(); ++i) {
-        values.push_back(table_tuple.GetValue(&table_info->schema_, i));
-      }
-
-      *tuple = Tuple{values, &GetOutputSchema()};
-      *rid = current_rid;
-      return true;
     }
-
   } else {
     while (current_idx_ < result_rids_.size()) {
       auto current_rid = result_rids_[current_idx_++];
-      // 使用索引返回的RID从表中获取元组
-      auto [tuple_meta, table_tuple] = table_info->table_->GetTuple(current_rid);
-
-      if (tuple_meta.is_deleted_) {
+      auto visible = MvccRead(txn, txn_mgr, table_info->schema_, table_info->table_.get(), current_rid);
+      if (!visible.has_value()) {
         continue;
       }
-
-      // 过滤
-      if (plan_->filter_predicate_ != nullptr) {
-        auto value = plan_->filter_predicate_->Evaluate(&table_tuple, table_info->schema_);
-        if (value.IsNull() || !value.GetAs<bool>()) {
-          continue;
-        }
+      if (emit(current_rid, *visible)) {
+        return true;
       }
-
-      // 对元组投影，使其匹配输出 schema（只保留需要的字段）
-      std::vector<Value> values;
-      values.reserve(GetOutputSchema().GetColumnCount());
-      // 遍历输出schema的每个字段，从原始元组中提取对应的值
-      for (uint32_t i = 0; i < GetOutputSchema().GetColumnCount(); ++i) {
-        values.push_back(table_tuple.GetValue(&table_info->schema_, i));
-      }
-
-      *tuple = Tuple{values, &GetOutputSchema()};
-      *rid = current_rid;
-      return true;
     }
   }
   return false;
 }
+
 }  // namespace bustub

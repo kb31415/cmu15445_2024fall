@@ -112,7 +112,9 @@ void ExternalMergeSortExecutor<K>::CreateInitialRuns() {
     }
 
     runs_.emplace_back(MergeSortRun(pages, exec_ctx_->GetBufferPoolManager()));
-    if (tuples_over) break;
+    if (tuples_over) {
+      break;
+    }
   }
 }
 

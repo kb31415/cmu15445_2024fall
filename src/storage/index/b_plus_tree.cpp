@@ -425,20 +425,16 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
     // page_id : " << ctx.write_set_.back().GetPageId() <<
     //   " inserted index :" << insert_index << " in op" << std::endl;
 
-    // 返回-1表示没有满足条件的插入位置，一般为右边界等于key的情况
+    // 返回-1表示key等于叶子最左键，唯一索引下视为重复
     if (insert_index == -1) {
-      // std::cout << "Thread " << std::this_thread::get_id() << " can't insert value: " << value.GetSlotNum()  <<
-      // std::endl;
       return false;
     }
-    // 前面函数找到的index位置可能键与key相同，若相同则返回false
-    if (comparator_(leaf_page->KeyAt(insert_index), key) == 0) {
-      // std::cout << "Thread " << std::this_thread::get_id() << " can't insert value: " << value.GetSlotNum()  <<
-      // std::endl;
+    // insert_index == size 时键应追加到末尾。删除后该槽可能残留旧键，不能拿来判断重复
+    int size = leaf_page->GetSize();
+    if (insert_index < size && comparator_(leaf_page->KeyAt(insert_index), key) == 0) {
       return false;
     }
 
-    int size = leaf_page->GetSize();
     for (int i = size; i > insert_index; i--) {
       leaf_page->SetKeyAt(i, leaf_page->KeyAt(i - 1));
       leaf_page->SetValueAt(i, leaf_page->ValueAt(i - 1));
@@ -507,16 +503,12 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value) -> bool 
   // page_id : " << ctx.write_set_.back().GetPageId() <<
   //     " inserted index :" << insert_index << " in pe" << std::endl;
 
-  // 返回-1表示没有满足条件的插入位置，一般为右边界等于key的情况
+  // 返回-1表示key等于叶子最左键，唯一索引下视为重复
   if (insert_index == -1) {
-    // std::cout << "Thread " << std::this_thread::get_id() << " can't insert value: " << value.GetSlotNum()  <<
-    // std::endl;
     return false;
   }
-  // 前面函数找到的index位置可能键与key相同，若相同则返回false
-  if (comparator_(leaf_page->KeyAt(insert_index), key) == 0) {
-    // std::cout << "Thread " << std::this_thread::get_id() << " can't insert value: " << value.GetSlotNum() <<
-    // std::endl;
+  // insert_index == size 时键应追加到末尾。删除后该槽可能残留旧键，不能拿来判断重复
+  if (insert_index < leaf_page->GetSize() && comparator_(leaf_page->KeyAt(insert_index), key) == 0) {
     return false;
   }
 

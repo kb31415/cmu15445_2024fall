@@ -44,7 +44,7 @@ class NestedIndexJoinExecutor : public AbstractExecutor {
   /** current outer tuple */
   Tuple outer_tuple_{};
   /** current outer rid */
-  RID outer_rid{};
+  RID outer_rid_{};
   /** whether have a valid outer tuple */
   bool outer_tuple_available_{false};
   /** current inner table matches for the current outer tuple */
@@ -54,4 +54,8 @@ class NestedIndexJoinExecutor : public AbstractExecutor {
   /** whether the current outer tuple has been matched*/
   bool outer_matched_{false};
 };
+
+// The Fall 2024 executor factory still constructs this type under the old spelling.
+using NestIndexJoinExecutor = NestedIndexJoinExecutor;
+
 }  // namespace bustub

@@ -14,7 +14,6 @@
 
 #include <atomic>
 #include <cstddef>
-#include <limits>
 #include <list>
 #include <mutex>  // NOLINT
 #include <optional>

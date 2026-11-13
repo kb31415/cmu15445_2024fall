@@ -62,6 +62,14 @@ auto GenerateUpdatedUndoLog(const Schema *schema, const Tuple *base_tuple, const
 void TxnMgrDbg(const std::string &info, TransactionManager *txn_mgr, const TableInfo *table_info,
                TableHeap *table_heap);
 
+/** Apply an insert/update/delete to a tuple that already exists in the heap, including undo logging. */
+void MvccModify(Transaction *txn, TransactionManager *txn_mgr, table_oid_t oid, TableHeap *heap, const Schema *schema,
+                RID rid, const Tuple *target, bool deleted);
+
+/** Return the version of this tuple that `txn` is allowed to see. */
+auto MvccRead(Transaction *txn, TransactionManager *txn_mgr, const Schema &schema, TableHeap *heap, RID rid)
+    -> std::optional<Tuple>;
+
 // TODO(P4): Add new functions as needed... You are likely need to define some more functions.
 //
 // To give you a sense of what can be shared across executors / transaction manager, here are the
